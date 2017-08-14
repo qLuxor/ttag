@@ -698,12 +698,15 @@ class TTBuffer(object):
         TimeStamps = np.stack((np.fabs(TimeStamps[0]), TimeStamps[1]))
         
         #Coincidence is a subarray of Timestamps that has only the elements which correspond to a coincidence, Timestamps[1] should be times and therefore comparable with radius, otherwise convert radius using resolution
-        Coincidence = TimeStamps[:,TimeStamps[1]<radius]
+        if sort or delays==None:
+            Coincidence = TimeStamps[:,TimeStamps[1]<radius]
+        else: #if there was no sorting after a delay there can be negative differences, if they were accepted there would be more coincidences with dark counts
+            Coincidence = TimeStamps[:,np.abs(TimeStamps[1])<radius]
         #The array in len() contains only the second row of Coincidence and only for elements which respect the condition
         coincidenceMatrix = numpy.zeros((self.channels,self.channels),dtype=numpy.uint64)
         for i in range(0, self.channels):
             for j in range(0, self.channels):
-                coincidenceMatrix[i][j]=len(Coincidence[1, Coincidence[0] == coincidenceKey(i,j)])
+                coincidenceMatrix[i][j]=len(Coincidence[1, Coincidence[0] == self.coincidenceKey(i,j)])
         return coincidenceMatrix
         
         
