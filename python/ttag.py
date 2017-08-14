@@ -655,6 +655,57 @@ class TTBuffer(object):
         else:
             return libttag.tt_multicoincidences(self.tt_buf,time,diameter,
                         channels.ctypes.data_as(ctypes.POINTER(ctypes.c_ubyte)),len(channels),None)
+    
+    #this function identifies channel pairs through the differences in their index 
+    #author Giulio Foletto, based on similar code by Luca Calderaro      
+    def coincidenceKey(self, firstChannelIndex, secondChannelIndex):
+        if (firstChannelIndex not in range(0, self.channels)) or (secondChannelIndex not in range(0, self.channels)):
+            raise ValueError("Requested invalid channels")
+        return np.abs(firstChannelIndex**2-secondChannelIndex**2)
+    
+    #if sort == False, this function works only if there are only 2 active channels or the detection period is much larger than any delay.
+    #author Giulio Foletto, based on similar code by Luca Calderaro 
+    def luxorcoincidences(self, time, radius, delays=None, sort = False):
+        #this should properly set the startindex, assuming self.resolution works as expected and there are no type inconsistencies
+        indexback=type(self.datapoints)(round(time/self.resolution))
+        startindex=self.datapoints-indexback
+        stopindex=self.datapoints
+        #TimeStamps should contain channel indexes in the first row and times in the second (not timebins)
+        TimeStamps=np.asarray(self[startindex:stopindex])
+        
+        if (delays!=None):
+            #check delays array, code taken from coincidences 
+            if not (isinstance(delays,numpy.ndarray)):
+                delays = numpy.array(delays,dtype=numpy.double)
+            if (delays.dtype!=numpy.double or len(delays)>self.channels):
+                raise ValueError("Delay array incorrect type or length")
+            if (len(delays)<self.channels):
+                d = numpy.zeros(self.channels,dtype=numpy.double)
+                d[0:len(delays)]=delays
+                delays=d
+            # Apply delays to the timetag array (second row of TimeStamps) by comparing the channels (first row) to the delays array
+            TimeStamps[1,:] += delays[TimeStamps[0,:].astype(int)]
+            if sort:
+                idx = np.argsort(TimeStamps[1])
+                TimeStamps = TimeStamps[:,idx]
+            
+        #Find time differences
+        #Square the channel index so that each pair is unique
+        TimeStamps = np.stack((TimeStamps[0]**2, TimeStamps[1]))
+        #Differences between neighboors
+        TimeStamps = np.diff(TimeStamps)
+        #Make pair differences symmetrical so that the order does not matter
+        TimeStamps = np.stack((np.fabs(TimeStamps[0]), TimeStamps[1]))
+        
+        #Coincidence is a subarray of Timestamps that has only the elements which correspond to a coincidence, Timestamps[1] should be times and therefore comparable with radius, otherwise convert radius using resolution
+        Coincidence = TimeStamps[:,TimeStamps[1]<radius]
+        #The array in len() contains only the second row of Coincidence and only for elements which respect the condition
+        coincidenceMatrix = numpy.zeros((self.channels,self.channels),dtype=numpy.uint64)
+        for i in range(0, self.channels):
+            for j in range(0, self.channels):
+                coincidenceMatrix[i][j]=len(Coincidence[1, Coincidence[0] == coincidenceKey(i,j)])
+        return coincidenceMatrix
+        
         
     def correlate(self,time,windowradius,bins,channel1,channel2,channel1delay=0.0,channel2delay=0.0):
         corr = numpy.zeros(bins,dtype=numpy.uint64)
