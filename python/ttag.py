@@ -661,7 +661,7 @@ class TTBuffer(object):
     def coincidenceKey(self, firstChannelIndex, secondChannelIndex):
         if (firstChannelIndex not in range(0, self.channels)) or (secondChannelIndex not in range(0, self.channels)):
             raise ValueError("Requested invalid channels")
-        return np.abs(firstChannelIndex**2-secondChannelIndex**2)
+        return numpy.abs(firstChannelIndex**2-secondChannelIndex**2)
     
     #if sort == False, this function works only if there are only 2 active channels or the detection period is much larger than any delay.
     #author Giulio Foletto, based on similar code by Luca Calderaro 
@@ -671,7 +671,7 @@ class TTBuffer(object):
         startindex=self.datapoints-indexback
         stopindex=self.datapoints
         #TimeStamps should contain channel indexes in the first row and times in the second (not timebins)
-        TimeStamps=np.asarray(self[startindex:stopindex])
+        TimeStamps=numpy.asarray(self[startindex:stopindex])
         
         if (delays!=None):
             #check delays array, code taken from coincidences 
@@ -686,22 +686,22 @@ class TTBuffer(object):
             # Apply delays to the timetag array (second row of TimeStamps) by comparing the channels (first row) to the delays array
             TimeStamps[1,:] += delays[TimeStamps[0,:].astype(int)]
             if sort:
-                idx = np.argsort(TimeStamps[1])
+                idx = numpy.argsort(TimeStamps[1])
                 TimeStamps = TimeStamps[:,idx]
             
         #Find time differences
         #Square the channel index so that each pair is unique
-        TimeStamps = np.stack((TimeStamps[0]**2, TimeStamps[1]))
+        TimeStamps = numpy.stack((TimeStamps[0]**2, TimeStamps[1]))
         #Differences between neighboors
-        TimeStamps = np.diff(TimeStamps)
+        TimeStamps = numpy.diff(TimeStamps)
         #Make pair differences symmetrical so that the order does not matter
-        TimeStamps = np.stack((np.fabs(TimeStamps[0]), TimeStamps[1]))
+        TimeStamps = numpy.stack((numpy.fabs(TimeStamps[0]), TimeStamps[1]))
         
         #Coincidence is a subarray of Timestamps that has only the elements which correspond to a coincidence, Timestamps[1] should be times and therefore comparable with radius, otherwise convert radius using resolution
         if sort or delays==None:
             Coincidence = TimeStamps[:,TimeStamps[1]<radius]
         else: #if there was no sorting after a delay there can be negative differences, if they were accepted there would be more coincidences with dark counts
-            Coincidence = TimeStamps[:,np.abs(TimeStamps[1])<radius]
+            Coincidence = TimeStamps[:,numpy.abs(TimeStamps[1])<radius]
         #The array in len() contains only the second row of Coincidence and only for elements which respect the condition
         coincidenceMatrix = numpy.zeros((self.channels,self.channels),dtype=numpy.uint64)
         for i in range(0, self.channels):
