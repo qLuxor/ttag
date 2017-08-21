@@ -100,8 +100,8 @@ static void exitsignal(int signal) {
 int main( int argc, char ** argv )
 {
 	tt_buf* buffer;				//The libTTag buffer: tags are written to it
-	Int64 timestamps[10000];	//Timestamp buffer
-	Int8  channels[10000];		//Channel buffer
+	Int64 timestamps[1000000];	//Timestamp buffer
+	Int8  channels[1000000];		//Channel buffer
 	int tagcount;				//The number of tags
 	int datalost=0;				//Whether there was an overflow
 	int overflownum = 0;		//number of overflow
@@ -177,7 +177,9 @@ int main( int argc, char ** argv )
 	//Make sure all settings are within bounds
 	ASSERT(buffersize >= 50000000,-5);
 	WARN(buffersize < 100000000,,"The buffer size chosen is a bit small. Will try to continue.\n");
-	WARN(qubuffer > 10000,qubuffer = 10000,"Agilent buffer too large. Adapting to maximum accepted value (%i).",10000);
+	//WARN(qubuffer > 10000,qubuffer = 10000,"Agilent buffer too large. Adapting to maximum accepted value (%i).",10000);
+	// quTau buffer
+	WARN(qubuffer > 1000000, qubuffer = 1000000,"QuTau buffer too large. Adapting to maximum accepted value (%i).",1000000);
 	
 	//Print out settings
 	cout << "Buffer Size:         " << buffersize << endl;
@@ -199,7 +201,8 @@ int main( int argc, char ** argv )
 
 	//Initialize time tagger
 	ASSERT(!TDC_init(deviceID),-1);						//Initialize the time tagger
-	ASSERT(!TDC_enableChannels( 0xff ),-2);				//Use all 8 channels
+    ASSERT(!TDC_switchTermination(1),-5);               //Use 50 Ohm termination
+    ASSERT(!TDC_enableChannels( 0xff ),-2);				//Use all 8 channels
 	ASSERT(!TDC_setTimestampBufferSize(qubuffer),-3);	//Initialize timestamp buffer
 	ASSERT(!TDC_freezeBuffers(0),-4);					//Make sure everything is unfrozen
 
@@ -219,25 +222,33 @@ int main( int argc, char ** argv )
 	}
 
 	while (runAcquisition) {
-		while (!tt_running(buffer)) {
+		while (!tt_running(buffer) && runAcquisition) {
 			boost::this_thread::sleep(boost::posix_time::milliseconds(200));
 		}
-		printf("> Started Acquisition                              \n");
-		while (tt_running(buffer) && runAcquisition) {
-			TDC_getDataLost(&datalost);
-			if (datalost) {
-				printf(">> OVERFLOW %i                          \n",overflownum++);
-			}
+		if (runAcquisition) {
+			printf("> Started Acquisition                              \n");
+			while (tt_running(buffer) && runAcquisition) {
+				TDC_getDataLost(&datalost);
+				if (datalost) {
+					printf(">> OVERFLOW %i                          \n",overflownum++);
+				}
 
-			TDC_getLastTimestamps( 1, timestamps, channels, &tagcount );
-			tt_addarray(buffer,(uint8_t*)channels,(uint64_t*)timestamps,(uint64_t)tagcount);
+				TDC_getLastTimestamps( 1, timestamps, channels, &tagcount );
+				tt_addarray(buffer,(uint8_t*)channels,(uint64_t*)timestamps,(uint64_t)tagcount);
 			
-			printf(" Reading: %llu                       \r",tt_datapoints(buffer));
+				//printf(" Reading: %llu                       \r",tt_datapoints(buffer));
+				//boost::this_thread::sleep(boost::posix_time::milliseconds(2));
+			}
+			printf("> Stopped Acquisition                              \n");
 		}
-		printf("> Stopped Acquisition                              \n");
 	}
 
 	printf("> Cleaning Up...                    \n" );
+
+	if (autostart) {
+		tt_remrunner(buffer);
+	}
+
 	tt_close(buffer);
 	TDC_deInit();
 	return 0;
