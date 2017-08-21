@@ -12,8 +12,8 @@ filename="C:/Users/kwiat/Desktop/dumpedDATA.csv"
 from pylab import *
 import ttag
 
-print "Writing File: \""+filename+"\""
-print "Amount to dump:",dumpamt
+print("Writing File: \""+filename+"\"")
+print("Amount to dump:",dumpamt)
 try:
 	x=ttag.TTBuffer(buffernumber)
 	#print 
@@ -22,9 +22,9 @@ try:
 	else:
 		if (dumpamt==-1):
 			dumpamt = len(x)
-			print "Set Dump Amount:",dumpamt
+			print("Set Dump Amount:",dumpamt)
 		(c,t) = x[-int(dumpamt):]
 	savetxt(filename,(c,t))
-except Exception, e:
-	print e
-	raw_input()
+except Exception as e:
+	print(e)
+	input()
