@@ -667,7 +667,7 @@ class TTBuffer(object):
     #author Giulio Foletto, based on similar code by Luca Calderaro 
     def luxorcoincidences(self, time, radius, delays=None, sort = False):
         #this should properly set the startindex, assuming self.resolution works as expected and there are no type inconsistencies
-        indexback=type(self.datapoints)(round(time/self.resolution))
+        indexback=libttag.tt_subtractreference(self.tt_buf,libttag.tt_time2bin(self.tt_buf,time))
         startindex=self.datapoints-indexback
         stopindex=self.datapoints
         #TimeStamps should contain channel indexes in the first row and times in the second (not timebins)
