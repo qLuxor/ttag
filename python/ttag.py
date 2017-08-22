@@ -663,14 +663,31 @@ class TTBuffer(object):
             raise ValueError("Requested invalid channels")
         return numpy.abs(firstChannelIndex**2-secondChannelIndex**2)
     
-    #if sort == False, this function works only if there are only 2 active channels or the detection period is much larger than any delay.
     #author Giulio Foletto, based on similar code by Luca Calderaro 
-    def luxorcoincidences(self, time, radius, delays=None, sort = False):
-        #this should properly set the startindex, assuming self.resolution works as expected and there are no type inconsistencies
-        #indexback=libttag.tt_subtractreference(self.tt_buf,libttag.tt_time2bin(self.tt_buf,time))
-        #startindex=self.datapoints-indexback
-        #stopindex=self.datapoints
-        #TimeStamps should contain channel indexes in the first row and times in the second (not timebins)
+    def fastcoincidences(self, time, radius, delays=None, sort = True):
+        """Fast algorithm counting coincidences between any couple of channels.
+        
+        Parameters
+        ----------
+        * `time`: float.
+            Acquisition time in seconds.
+        * `radius`: float.
+            Coincidence radius in seconds.
+        * `delays`: numpy array (default None).
+            Channel delays in seconds.
+        * `sort`: bool (default True).
+            If True sort time tags.
+            
+        Returns
+        -------
+        * `coincidenceMatrix`: numpy array.
+            Coincidence matrix, with singles in the diagonal elements.
+        
+        NOTE
+        ----
+        If the dead time of the detectors is greater than the channels delay, the sort can be set to False, making the algorithm faster.
+        """
+        
         TimeStamps=numpy.asarray(self(time))
         
         if (delays!=None):
