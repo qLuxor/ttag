@@ -688,7 +688,12 @@ class TTBuffer(object):
             if sort:
                 idx = numpy.argsort(TimeStamps[1])
                 TimeStamps = TimeStamps[:,idx]
-            
+        
+        coincidenceMatrix = numpy.zeros((self.channels,self.channels),dtype=numpy.uint64)
+        #Find singles
+        for i in range(0, self.channels):
+            coincidenceMatrix[i][i] = len(TimeStamps[0, TimeStamps[0]==i])
+        
         #Find time differences
         #Square the channel index so that each pair is unique
         TimeStamps = numpy.stack((TimeStamps[0]**2, TimeStamps[1]))
@@ -703,10 +708,10 @@ class TTBuffer(object):
         else: #if there was no sorting after a delay there can be negative differences, if they were accepted there would be more coincidences with dark counts
             Coincidence = TimeStamps[:,numpy.abs(TimeStamps[1])<radius]
         #The array in len() contains only the second row of Coincidence and only for elements which respect the condition
-        coincidenceMatrix = numpy.zeros((self.channels,self.channels),dtype=numpy.uint64)
         for i in range(0, self.channels):
-            for j in range(0, self.channels):
+            for j in range(i+1, self.channels):
                 coincidenceMatrix[i][j]=len(Coincidence[1, Coincidence[0] == self.coincidenceKey(i,j)])
+                coincidenceMatrix[j][i]=coincidenceMatrix[i][j]
         return coincidenceMatrix
         
         
