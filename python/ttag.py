@@ -687,9 +687,13 @@ class TTBuffer(object):
         ----
         If the dead time of the detectors is greater than the channels delay, the sort can be set to False, making the algorithm faster.
         """
-        
+
+        if time <= 0.:
+            raise ValueError("Time value is not positive")        
         TimeStamps=numpy.asarray(self(time))
         
+        if radius <= 0.:
+            raise ValueError("Radius value is not positive")
         if (delays!=None):
             #check delays array, code taken from coincidences 
             if not (isinstance(delays,numpy.ndarray)):
