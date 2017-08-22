@@ -684,7 +684,7 @@ class TTBuffer(object):
                 d[0:len(delays)]=delays
                 delays=d
             # Apply delays to the timetag array (second row of TimeStamps) by comparing the channels (first row) to the delays array
-            TimeStamps[1,:] += delays[TimeStamps[0,:].astype(int)]
+            TimeStamps[1,:] -= delays[TimeStamps[0,:].astype(int)]
             if sort:
                 idx = numpy.argsort(TimeStamps[1])
                 TimeStamps = TimeStamps[:,idx]
