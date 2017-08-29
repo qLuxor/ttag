@@ -283,9 +283,9 @@ import numpy.ctypeslib
 
 libttag=None
 if (sys.maxsize > 2**32):
-    libttag = numpy.ctypeslib.load_library("libttag",".")
+    libttag = numpy.ctypeslib.load_library("libttag", "/usr/lib")
 else:
-    libttag = numpy.ctypeslib.load_library("libttag32",".")
+    libttag = numpy.ctypeslib.load_library("libttag32","/usr/lib")
     
     
 class tt_buf(ctypes.Structure):
