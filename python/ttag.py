@@ -821,14 +821,15 @@ class TTBuffer(object):
                 delaysabsolute=False
             else:
                 raise ValueError("Wrong number of delays")
-        #now if there is a delay, it is either absolute ore in the same shape as channelpairs
+        #now if there is a delay, it is either absolute or in the same shape as channelpairs
         
         #everything has been checked, starting analysis
         #TimeStamps contains the original time tags
         TimeStamps=numpy.asarray(self(time))
         
         #if delays are given as absolutes, they are applied at the beginning
-        if (delays!=None) and delaysabsolute and requestcoinc:
+        #notice that delaysabsolute is not evaluated if any of the first two conditions is False, in which case it would not even exist
+        if (delays!=None) and requestcoinc and delaysabsolute:
             TimeStamps[1,:] -= delays[TimeStamps[0,:].astype(int)]
             if sort:
                 idx = numpy.argsort(TimeStamps[1])
