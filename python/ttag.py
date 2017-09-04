@@ -775,6 +775,9 @@ class TTBuffer(object):
         #convert channelpairs to a numpy array if it is not
         if not (isinstance(channelpairs,numpy.ndarray)):
             channelpairs = numpy.array(channelpairs,dtype=numpy.int)
+        #check for wrong type
+        if channelpairs.dtype != numpy.int:
+            raise ValueError("Channel array incorrect type")
         #check that all requested channels exist
         if numpy.min(channelpairs)<0 or numpy.max(channelpairs)>self.channels:
             raise ValueError("Requested channels do not exist")
@@ -787,8 +790,15 @@ class TTBuffer(object):
         #if channelpairs has rows that are not pairs, return an error
         if channelpairs.shape[1] !=2:
             raise ValueError("This function requires pairs of channels")
+        #flag for request of only singles or also coincidences
+        requestcoinc=False
+        for pair in channelpairs:
+            if pair[0]!=pair[1]:
+                requestcoinc=True
+                break
             
-        if (delays!=None):
+        #check of delay array, useless if coincidences are never requested
+        if (delays!=None) and requestcoinc:
             #check delays array, code taken from coincidences 
             if not (isinstance(delays,numpy.ndarray)):
                 delays = numpy.array(delays,dtype=numpy.double)
@@ -818,7 +828,7 @@ class TTBuffer(object):
         TimeStamps=numpy.asarray(self(time))
         
         #if delays are given as absolutes, they are applied at the beginning
-        if (delays!=None) and delaysabsolute:
+        if (delays!=None) and delaysabsolute and requestcoinc:
             TimeStamps[1,:] -= delays[TimeStamps[0,:].astype(int)]
             if sort:
                 idx = numpy.argsort(TimeStamps[1])
@@ -828,37 +838,41 @@ class TTBuffer(object):
         result=numpy.zeros(npairs, dtype=int)
         for contpair in range(0, npairs):
             pair=channelpairs[contpair]
-            #thispairTimeStamps contains only tags from the correct channels
-            #the bitwise operator | is used, althogh the formally more correct usage would be numpy.logical_or
-            #the former is slightly faster. Since pair has only two elements, comparing them one by one is faster than using numpy.in1d(TimeStamps[0], pair)
-            thispairTimeStamps=TimeStamps[:, (TimeStamps[0] == pair[0]) | (TimeStamps[0] == pair[1])]
-            #if delays are not given as absolutes, they are applied now to each pair
-            if (delays!=None) and (not delaysabsolute):
-                #d represents absolute delays for this pair
-                d = numpy.zeros(self.channels,dtype=numpy.double)
-                thispairdelays=delays[contpair]
-                for contchannel in range(0,1):
-                    d[pair[contchannel]]=thispairdelays[contchannel]
-                thispairTimeStamps[1,:] -= d[thispairTimeStamps[0,:].astype(int)]
-                if sort:
-                    idx = numpy.argsort(thispairTimeStamps[1])
-                    thispairTimeStamps = thispairTimeStamps[:,idx]
-                    
-            #Find time differences
-            #Square the channel index so that each pair is unique
-            thispairTimeStamps = numpy.stack((thispairTimeStamps[0]**2, thispairTimeStamps[1]))
-            #Differences between neighboors
-            thispairTimeStamps = numpy.diff(thispairTimeStamps)
-            #Make pair differences symmetrical so that the order does not matter
-            thispairTimeStamps = numpy.stack((numpy.fabs(thispairTimeStamps[0]), thispairTimeStamps[1]))
-            
-            #Coincidence is a subarray of thispairTimeStamps that has only the elements which correspond to a coincidence
-            if sort or delays==None:
-                Coincidence = thispairTimeStamps[:,thispairTimeStamps[1]<radius]
-            else: #if there was no sorting after a delay there can be negative differences, if they were accepted there would be more coincidences with dark counts
-                Coincidence = thispairTimeStamps[:,numpy.abs(thispairTimeStamps[1])<radius]
-            #the number of coincidences for this pair is 
-            result[contpair]=len(Coincidence[1, Coincidence[0] == self.coincidenceKey(pair[0], pair[1])]) 
+            #if singles are needed, less code is necessary
+            if pair[0]==pair[1]:
+                result[contpair]=len(TimeStamps[0, TimeStamps[0]==pair[0]])
+            else:
+                #thispairTimeStamps contains only tags from the correct channels
+                #the bitwise operator | is used, althogh the formally more correct usage would be numpy.logical_or
+                #the former is slightly faster. Since pair has only two elements, comparing them one by one is faster than using numpy.in1d(TimeStamps[0], pair)
+                thispairTimeStamps=TimeStamps[:, (TimeStamps[0] == pair[0]) | (TimeStamps[0] == pair[1])]
+                #if delays are not given as absolutes, they are applied now to each pair
+                if (delays!=None) and (not delaysabsolute):
+                    #d represents absolute delays for this pair
+                    d = numpy.zeros(self.channels,dtype=numpy.double)
+                    thispairdelays=delays[contpair]
+                    for contchannel in range(0,1):
+                        d[pair[contchannel]]=thispairdelays[contchannel]
+                    thispairTimeStamps[1,:] -= d[thispairTimeStamps[0,:].astype(int)]
+                    if sort:
+                        idx = numpy.argsort(thispairTimeStamps[1])
+                        thispairTimeStamps = thispairTimeStamps[:,idx]
+                        
+                #Find time differences
+                #Square the channel index so that each pair is unique
+                thispairTimeStamps = numpy.stack((thispairTimeStamps[0]**2, thispairTimeStamps[1]))
+                #Differences between neighboors
+                thispairTimeStamps = numpy.diff(thispairTimeStamps)
+                #Make pair differences symmetrical so that the order does not matter
+                thispairTimeStamps = numpy.stack((numpy.fabs(thispairTimeStamps[0]), thispairTimeStamps[1]))
+                
+                #Coincidence is a subarray of thispairTimeStamps that has only the elements which correspond to a coincidence
+                if sort or delays==None:
+                    Coincidence = thispairTimeStamps[:,thispairTimeStamps[1]<radius]
+                else: #if there was no sorting after a delay there can be negative differences, if they were accepted there would be more coincidences with dark counts
+                    Coincidence = thispairTimeStamps[:,numpy.abs(thispairTimeStamps[1])<radius]
+                #the number of coincidences for this pair is 
+                result[contpair]=len(Coincidence[1, Coincidence[0] == self.coincidenceKey(pair[0], pair[1])]) 
             
         return result
                     
